@@ -13,7 +13,7 @@ class Temperature_Normalized_Contrastive_Loss(torch.nn.Module):
         cosine_sim_matrix = torch.exp(cosine_sim_matrix)
         
         # Exclude the similarity of each data with itself
-        cosine_sim_matrix.fill_diagonal_(0)
+        cosine_sim_matrix = cosine_sim_matrix - torch.eye(len(target)).to(target.device)*cosine_sim_matrix
         
         # L1 norm of each row
         cosine_sim_matrix = torch.nn.functional.normalize(cosine_sim_matrix, p=1, dim=1)
