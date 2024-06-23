@@ -2,10 +2,11 @@ import torch
 
 class Encoder(torch.nn.Module):
     
-    def __init__(self, loss_function):
+    def __init__(self, loss_function, visualization):
         super(Encoder, self).__init__()
         
         self.loss_function = loss_function
+        self.visualization = visualization
 
         self.convolutional_level_1 = torch.nn.Conv2d(1, 10, kernel_size=5)
         self.convolutional_level_2 = torch.nn.Conv2d(10, 20, kernel_size=5)
@@ -13,7 +14,11 @@ class Encoder(torch.nn.Module):
         self.dropout = torch.nn.Dropout2d()
         
         self.fully_connected_level_1 = torch.nn.Linear(320, 50)
-        self.fully_connected_level_2 = torch.nn.Linear(50, 10)
+        if self.visualization == 'yes':
+            self.fully_connected_level_2 = torch.nn.Linear(50, 2)
+        else:
+            self.fully_connected_level_2 = torch.nn.Linear(50, 10)
+            
         
     def forward(self, x):
         

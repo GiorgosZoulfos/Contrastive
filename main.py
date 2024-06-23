@@ -8,6 +8,7 @@ import neptune.new as neptune
 import argparse
 import sys
 import configparser
+import matplotlib.pyplot as plt
 
 import Losses.Cross_Entropy
 import Losses.Supervised_Contrastive_Loss
@@ -37,7 +38,7 @@ def init_encoder(device):
     #loss_function_for_encoder = getattr(Losses, params['loss'])()
     loss_function_for_encoder = Losses.Supervised_Contrastive_Loss.Supervised_Contrastive_Loss()
 
-    encoder_F = Models.Encoder.Encoder(params['loss']).to(device)
+    encoder_F = Models.Encoder.Encoder(params['loss'], params['visual']).to(device)
     optimizer_for_encoder = torch.optim.Adam(list(encoder_F.parameters()), lr=params['lr'])
     scheduler_of_encoder = torch.optim.lr_scheduler.StepLR(optimizer_for_encoder,
                                                 step_size=params['step_size'],
@@ -108,7 +109,20 @@ def train_and_test_encoder(device,
             knn = KNeighborsClassifier(n_neighbors=num_neighbors)
             run[f'test/knn_{num_neighbors}'].log(sklearn.model_selection.cross_val_score(knn, output_knn, target_knn, cv=5).mean())
         
+        if params['visual'] == 'yes':   
+            visualize_encoded_data(output_knn, target_knn)
+        
     return encoder_F
+
+
+def visualize_encoded_data(output_knn, target_knn):
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+    fig = plt.figure(figsize=(16, 10))
+    plt.scatter(output_knn[:, 0], output_knn[:, 1], c=target_knn.tolist(), cmap='tab10')
+    for i in range(10):
+        plt.scatter(output_knn[target_knn==i,0].mean(), output_knn[target_knn==i,1].mean(), c=colors[i], marker="D", s=160)
+    run['test/visualization'].append(fig)
+    plt.close(fig)
 
 
 def train_and_test_classifier(device, 
@@ -188,6 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('--loss', type=str, help='Loss function')
     parser.add_argument('--batch_size', type=int, help='Batch size')
     parser.add_argument('--mode', type=str, default='debug', help='Mode: debug or async')
+    parser.add_argument('--visual', type=str, default='no', help='Visualize encoded data in R2')
     args = parser.parse_args()
     
     params = vars(args)
