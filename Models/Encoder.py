@@ -10,6 +10,8 @@ class Encoder(torch.nn.Module):
         self.convolutional_level_1 = torch.nn.Conv2d(1, 10, kernel_size=5)
         self.convolutional_level_2 = torch.nn.Conv2d(10, 20, kernel_size=5)
         
+        self.dropout = torch.nn.Dropout2d()
+        
         self.fully_connected_level_1 = torch.nn.Linear(320, 50)
         self.fully_connected_level_2 = torch.nn.Linear(50, 10)
         
@@ -22,7 +24,7 @@ class Encoder(torch.nn.Module):
         
         # Second Layer
         x = self.convolutional_level_2(x)
-        x = torch.nn.Dropout2d(x)
+        x = self.dropout(x)
         x = torch.nn.functional.max_pool2d(x, 2)
         x = torch.nn.functional.relu(x)
         
@@ -40,6 +42,8 @@ class Encoder(torch.nn.Module):
         # Normalize output data
         if self.loss_function in ['supcon', 'simclr']:
             x = torch.nn.functional.normalize(x, dim=1)
+            
+        return x
     
         
         
