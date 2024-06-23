@@ -9,6 +9,7 @@ import argparse
 import sys
 import configparser
 
+import Losses.Cross_Entropy
 import Losses.Supervised_Contrastive_Loss
 import Models.Classifier
 import Models.Encoder
@@ -47,7 +48,7 @@ def init_encoder(device):
 
 def init_classifier(device):
     
-    loss_function_for_classifier = getattr(Losses, params['loss'])()
+    loss_function_for_classifier = Losses.Cross_Entropy.Cross_Entropy()
     
     classifier_G = Models.Classifier('cross_entropy').to(device)
     optimizer_for_classifier = torch.optim.Adam(classifier_G.parameters(), lr=0.001)
@@ -108,6 +109,48 @@ def train_and_test_encoder(device,
             run[f'test/knn_{num_neighbors}'].log(sklearn.model_selection.cross_val_score(knn, output_knn, target_knn, cv=5).mean())
         
     return encoder_F
+
+
+def train_and_test_classifier(device, 
+                  train_loader,
+                  test_loader, 
+                  loss_function_for_classifier,
+                  classifier_G,
+                  encoder_F, 
+                  optimizer_for_classifier, 
+                  scheduler_for_classifier):
+    
+    for epoch in range(30): 
+        classifier_G.train()
+        
+        epoch_loss = 0.0
+        for batch_idx, (data, target) in enumerate(train_loader):
+            data, target = data.to(device), target.to(device)
+
+            optimizer_for_classifier.zero_grad()
+            output = classifier_G(encoder_F(data))
+            loss = loss_function_for_classifier(output, target)
+            loss.backward()
+                
+            optimizer_for_classifier.step()
+            epoch_loss += loss.item()
+        
+        run['train/cross_entropy_loss'].log(epoch_loss / len(train_loader))
+            
+         # Test
+        classifier_G.eval()
+        correct = 0
+        with torch.no_grad():
+            epoch_loss = 0.0
+            for data, target in test_loader:
+                data, target = data.to(device), target.to(device)
+                output = classifier_G(encoder_F(data))
+                loss = loss_function_for_classifier(output, target)
+                epoch_loss += loss.item()
+                _, predicted = torch.max(output, 1)
+                correct += (predicted == target).sum().item()
+            run['test/cross_entropy_loss'].log(epoch_loss)
+            run['test/cross_entropy_score'].log(correct / 10000)
         
     
 
