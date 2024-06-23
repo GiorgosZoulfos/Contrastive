@@ -1,0 +1,1 @@
+python main.py --loss Supervised_Contrastive_Loss --lr 0.001 --step_size 200 --gamma 0.1 --epochs_encoder 250 --epochs_classifier 30 --batch_size 250 --mode async --visual no --learnable_t yes --temperature 0.1

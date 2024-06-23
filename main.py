@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 
 import Losses.Cross_Entropy
 import Losses.Supervised_Contrastive_Loss
+import Losses.Temperature_Normalized_Contrastive_Loss
+import Losses.Contrastive_Loss
 import Models.Classifier
 import Models.Encoder
 
@@ -35,11 +37,27 @@ def load_and_transform_data():
     
 def init_encoder(device):
     
-    #loss_function_for_encoder = getattr(Losses, params['loss'])()
-    loss_function_for_encoder = Losses.Supervised_Contrastive_Loss.Supervised_Contrastive_Loss()
-
+    if params['loss'] == 'Supervised_Contrastive_Loss':
+        if params['learnable_t'] == 'yes':
+            loss_function_for_encoder = Losses.Supervised_Contrastive_Loss.Supervised_Contrastive_Loss(True, params['temperature'])
+        else:
+            loss_function_for_encoder = Losses.Supervised_Contrastive_Loss.Supervised_Contrastive_Loss(False, params['temperature'])
+    
+    if params['loss'] == 'Temperature_Normalized_Contrastive_Loss':
+        loss_function_for_encoder = Losses.Temperature_Normalized_Contrastive_Loss.Temperature_Normalized_Contrastive_Loss(params['temperature'])
+        
+    if params['loss'] == 'Contrastive_Loss':
+        loss_function_for_encoder = Losses.Contrastive_Loss.Contrastive_Loss()
+        
+    if params['loss'] == 'Cross_Entropy':
+        loss_function_for_encoder = Losses.Cross_Entropy.Cross_Entropy()
+        
     encoder_F = Models.Encoder.Encoder(params['loss'], params['visual']).to(device)
-    optimizer_for_encoder = torch.optim.Adam(list(encoder_F.parameters()), lr=params['lr'])
+    if params['loss'] == 'Supervised_Contrastive_Loss':
+        if params['learnable_t'] == 'yes':
+            optimizer_for_encoder = torch.optim.Adam(list(encoder_F.parameters()) + list(loss_function_for_encoder.parameters()), lr=params['lr'])
+        else:
+            optimizer_for_encoder = torch.optim.Adam(list(encoder_F.parameters()), lr=params['lr'])
     scheduler_of_encoder = torch.optim.lr_scheduler.StepLR(optimizer_for_encoder,
                                                 step_size=params['step_size'],
                                                 gamma=params['gamma'])
@@ -51,8 +69,8 @@ def init_classifier(device):
     
     loss_function_for_classifier = Losses.Cross_Entropy.Cross_Entropy()
     
-    classifier_G = Models.Classifier('cross_entropy').to(device)
-    optimizer_for_classifier = torch.optim.Adam(classifier_G.parameters(), lr=0.001)
+    classifier_G = Models.Classifier.Classifier('cross_entropy').to(device)
+    optimizer_for_classifier = torch.optim.Adam(classifier_G.parameters(), lr=params['lr'])
     scheduler_for_classifier = torch.optim.lr_scheduler.StepLR(optimizer_for_classifier,
                                                 step_size=params['step_size'],
                                                 gamma=params['gamma'])
@@ -68,7 +86,7 @@ def train_and_test_encoder(device,
                   optimizer_for_encoder, 
                   scheduler_of_encoder):
     # Train
-    for epoch in tqdm.tqdm(range(1, 1 + params['epochs'])):
+    for epoch in tqdm.tqdm(range(1, 1 + params['epochs_encoder'])):
         encoder_F.train()
         
         epoch_loss = 0.0
@@ -89,6 +107,9 @@ def train_and_test_encoder(device,
 
         run['train/lr'].log(optimizer_for_encoder.param_groups[0]['lr'])
         run['train/epoch_loss'].log(epoch_loss / len(train_loader))
+        if params['loss'] == 'Supervised_Contrastive_Loss':
+            if params['learnable_t'] == 'yes':
+                run['train/tau'].log(loss_function_for_encoder.temperature.item())
         scheduler_of_encoder.step()
         
         # Test
@@ -177,7 +198,7 @@ def main():
     
     loss_function_for_encoder, encoder_F, optimizer_for_encoder, scheduler_of_encoder = init_encoder(device)
     
-    #loss_function_for_classifier, classifier_G, optimizer_for_classifier, scheduler_for_classifier = init_classifier(device)
+    loss_function_for_classifier, classifier_G, optimizer_for_classifier, scheduler_for_classifier = init_classifier(device)
 
     encoder_F = train_and_test_encoder(device, 
                               train_loader, 
@@ -198,11 +219,14 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, help='Learning rate')
     parser.add_argument('--step_size', type=int, default=100, help='Step size for learning rate scheduler')
     parser.add_argument('--gamma', type=float, default=1.0, help='Gamma for learning rate scheduler')
-    parser.add_argument('--epochs', type=int, help='Number of epochs')
+    parser.add_argument('--epochs_encoder', type=int, help='Number of epochs for encoder')
+    parser.add_argument('--epochs_classifier', type=int, help='Number of epochs for classifier')
     parser.add_argument('--loss', type=str, help='Loss function')
     parser.add_argument('--batch_size', type=int, help='Batch size')
     parser.add_argument('--mode', type=str, default='debug', help='Mode: debug or async')
     parser.add_argument('--visual', type=str, default='no', help='Visualize encoded data in R2')
+    parser.add_argument('--learnable_t', type=str, default='no', help='Define if temperature is a hyperparameter or not')
+    parser.add_argument('--temperature', type=float, default=0.1, help='Initial value of temperature parameter')
     args = parser.parse_args()
     
     params = vars(args)

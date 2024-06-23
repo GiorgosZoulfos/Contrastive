@@ -45,7 +45,7 @@ class Encoder(torch.nn.Module):
         x = self.fully_connected_level_2(x)
         
         # Normalize output data
-        if self.loss_function in ['supcon', 'simclr']:
+        if self.loss_function in ['Supervised_Contrastive_Loss', 'Temperature_Normalized_Contrastive_Loss']:
             x = torch.nn.functional.normalize(x, dim=1)
             
         return x

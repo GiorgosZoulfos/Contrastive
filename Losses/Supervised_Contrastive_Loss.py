@@ -2,10 +2,14 @@ import torch
 
 class Supervised_Contrastive_Loss(torch.nn.Module):
     
-    def __init__(self, temperature=0.1):
+    def __init__(self, learnable, temperature=0.1):
         super(Supervised_Contrastive_Loss, self).__init__()
-        self.temperature = temperature
         
+        if learnable:
+            self.temperature = torch.nn.Parameter(torch.tensor(temperature, requires_grad=True))
+        else:
+            self.temperature = temperature
+            
     def forward(self, output, target):
         
         # Compute cosine similarity for each pair of data and normalize with temperature
