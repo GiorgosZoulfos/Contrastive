@@ -9,10 +9,10 @@ class Supervised_Contrastive_Loss(torch.nn.Module):
     def forward(self, output, target):
         
         # Compute cosine similarity for each pair of data and normalize with temperature
-        cosine_sim_matrix = torch.matmul(output, output.T) / self.tau
+        cosine_sim_matrix = torch.matmul(output, output.T) / self.temperature
         cosine_sim_matrix = torch.exp(cosine_sim_matrix)
         # Exclude the similarity of each data with itself
-        cosine_sim_matrix.fill_diagonal_(0)
+        cosine_sim_matrix = cosine_sim_matrix - torch.eye(len(target)).to(target.device)*cosine_sim_matrix
         # L1 norm of each row
         cosine_sim_matrix = torch.nn.functional.normalize(cosine_sim_matrix, p=1, dim=1)
         
