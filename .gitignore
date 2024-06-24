@@ -3,4 +3,5 @@ Losses/__pycache__
 Models/__pycache__
 trash.py
 neptune_config.cfg
+.neptune
 

@@ -53,11 +53,15 @@ def init_encoder(device):
         loss_function_for_encoder = Losses.Cross_Entropy.Cross_Entropy()
         
     encoder_F = Models.Encoder.Encoder(params['loss'], params['visual']).to(device)
+    
     if params['loss'] == 'Supervised_Contrastive_Loss':
         if params['learnable_t'] == 'yes':
             optimizer_for_encoder = torch.optim.Adam(list(encoder_F.parameters()) + list(loss_function_for_encoder.parameters()), lr=params['lr'])
         else:
             optimizer_for_encoder = torch.optim.Adam(list(encoder_F.parameters()), lr=params['lr'])
+    else:
+        optimizer_for_encoder = torch.optim.Adam(list(encoder_F.parameters()), lr=params['lr'])
+        
     scheduler_of_encoder = torch.optim.lr_scheduler.StepLR(optimizer_for_encoder,
                                                 step_size=params['step_size'],
                                                 gamma=params['gamma'])
@@ -155,7 +159,7 @@ def train_and_test_classifier(device,
                   optimizer_for_classifier, 
                   scheduler_for_classifier):
     
-    for epoch in range(30): 
+    for epoch in tqdm.tqdm(range(1, 1 + params['epochs_classifier'])): 
         classifier_G.train()
         
         epoch_loss = 0.0
@@ -185,9 +189,7 @@ def train_and_test_classifier(device,
                 _, predicted = torch.max(output, 1)
                 correct += (predicted == target).sum().item()
             run['test/cross_entropy_loss'].log(epoch_loss)
-            run['test/cross_entropy_score'].log(correct / 10000)
-        
-    
+            run['test/cross_entropy_score'].log(correct / 10000)  
 
 
 def main():
@@ -207,6 +209,16 @@ def main():
                               encoder_F, 
                               optimizer_for_encoder, 
                               scheduler_of_encoder)
+    
+    if params['visual'] != 'yes':
+        classifier_G = train_and_test_classifier(device, 
+                    train_loader,
+                    test_loader, 
+                    loss_function_for_classifier,
+                    classifier_G,
+                    encoder_F, 
+                    optimizer_for_classifier, 
+                    scheduler_for_classifier)
     
     
     
