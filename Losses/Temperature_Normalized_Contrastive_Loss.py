@@ -26,16 +26,11 @@ class Temperature_Normalized_Contrastive_Loss(torch.nn.Module):
         Label_matrix = Label_matrix - torch.eye(len(target)).to(target.device)
 
         # Keep only one similar pair per row
-        for i in range(len(Label_matrix)):
-            found_one = 0
-            
-            for j in range(len(Label_matrix)):
-                
-                if Label_matrix[i,j] == 1 and found_one == 0:
-                    found_one = 1
-                elif found_one == 1:
-                    Label_matrix[i,j] = 0
-    
+        max_per_row, indexes = torch.max(Label_matrix, 1, keepdim=True)
+        temp = torch.zeros_like(Label_matrix)
+        temp.scatter_(1, indexes, max_per_row)
+        Label_matrix = temp
+
         # Compute loss for this batch
         loss = - torch.log((cosine_sim_matrix * Label_matrix).sum(dim=1)).sum() 
         return loss / len(target)
